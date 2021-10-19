@@ -15,12 +15,24 @@
 #include "rpc.h"
 #include "mr_protocol.h"
 
+#define DEBUG
+
 using namespace std;
 
 struct KeyVal {
     string key;
     string val;
 };
+
+bool isLetter(const char &a) {
+    if(a>='a'&&a<='z'){
+        return true;
+    }
+    if(a>='A'&&a<='Z'){
+        return true;
+    }
+    return false;
+}
 
 //
 // The map function is called once for each file of input. The first
@@ -32,7 +44,37 @@ struct KeyVal {
 vector<KeyVal> Map(const string &filename, const string &content)
 {
 	// Copy your code from mr_sequential.cc here.
-
+	map<string, size_t> wordCount;
+    vector<KeyVal> ret;
+    size_t inputLength = content.length();
+    size_t pos = 0;
+    size_t len = 0;
+    bool word = false;
+    string key;
+    for (size_t i = 0; i < inputLength; i++){
+        if(isLetter(content[i])){
+            if(word==false){
+                word=true;
+                pos = i;
+            }
+            len++;
+        }
+        else{
+            if(len>0){
+                key = content.substr(pos, len);
+                wordCount[key]++;
+            }
+            word = false;
+            len = 0;
+        }
+    }
+    for(auto &w : wordCount){
+        KeyVal kv;
+        kv.key = w.first;
+        kv.val = to_string(w.second);
+        ret.push_back(kv);
+    }
+    return ret;
 }
 
 //
@@ -43,7 +85,13 @@ vector<KeyVal> Map(const string &filename, const string &content)
 string Reduce(const string &key, const vector < string > &values)
 {
     // Copy your code from mr_sequential.cc here.
-
+	int count = 0;
+    uint32_t size = values.size();
+    for(int i = 0;i<size;++i){
+        int temp = std::atoi((values[i]).c_str());
+        count += temp;
+    }
+    return to_string(count);
 }
 
 
@@ -57,9 +105,10 @@ public:
 	void doWork();
 
 private:
-	void doMap(int index, const vector<string> &filenames);
+	void doMap(int index, const string &filename);
 	void doReduce(int index);
 	void doSubmit(mr_tasktype taskType, int index);
+	int hash(const string &filename);
 
 	mutex mtx;
 	int id;
@@ -76,6 +125,9 @@ Worker::Worker(const string &dst, const string &dir, MAPF mf, REDUCEF rf)
 	this->basedir = dir;
 	this->mapf = mf;
 	this->reducef = rf;
+	#ifdef DEBUG
+	cout << "basedir: " << this->basedir << endl;
+	#endif
 
 	sockaddr_in dstsock;
 	make_sockaddr(dst.c_str(), &dstsock);
@@ -85,16 +137,83 @@ Worker::Worker(const string &dst, const string &dir, MAPF mf, REDUCEF rf)
 	}
 }
 
-void Worker::doMap(int index, const vector<string> &filenames)
+int Worker::hash(const string &filename){
+	int origin = filename.size() + (int)(filename[0]) +(int)(filename[filename.size()-1]);
+	return (origin % 4);
+}
+
+void Worker::doMap(int index, const string &filename)
 {
 	// Lab2: Your code goes here.
-
+	#ifdef DEBUG
+	cout << "basedir: " << basedir << " , filename: " << filename << endl;
+	#endif
+	string content;
+	getline(ifstream(filename), content, '\0');
+	vector<KeyVal> pairs = mapf(filename, content);
+	ofstream out0(basedir+"/mr-"+to_string(index)+"-0");
+    ofstream out1(basedir+"/mr-"+to_string(index)+"-1");
+    ofstream out2(basedir+"/mr-"+to_string(index)+"-2");
+    ofstream out3(basedir+"/mr-"+to_string(index)+"-3");
+	for(auto &pair : pairs){
+		switch(hash(pair.key)){
+			case 0:
+				out0 << pair.key << '\t' << pair.val << endl;
+                break;
+            case 1:
+				out1 << pair.key << '\t' << pair.val << endl;
+                break;
+            case 2:
+				out2 << pair.key << '\t' << pair.val << endl;
+                break;
+            case 3:
+				out3 << pair.key << '\t' << pair.val << endl;
+                break;
+            default:
+                break;
+		}
+	}
+	out0.close();
+    out1.close();
+    out2.close();
+    out3.close();
+	doSubmit(mr_tasktype::MAP, index);
 }
 
 void Worker::doReduce(int index)
 {
 	// Lab2: Your code goes here.
-
+	int map_index = 0;
+	map<string, uint32_t> wordCount;
+	string buf;
+	while(1){
+		buf = "";
+		string key;
+		uint32_t val;
+		ifstream in(basedir+"/mr-"+to_string(map_index)+"-"+to_string(index));
+		map_index++;
+		if(in.is_open()){
+			#ifdef DEBUG
+			cout << "basedir: " << basedir << " , index: " << index << endl;
+			#endif
+			while(getline(in, buf)){
+				stringstream ss;
+				ss << buf;
+				ss >> key >> val;
+				wordCount[key] += val;
+			}
+			in.close();
+		}
+		else{
+			break;
+		}
+	}
+	ofstream out(basedir+"/mr-out"+to_string(index));
+	for(auto &entry : wordCount){
+		out << entry.first << ' ' << entry.second << endl;
+	}
+	out.close();
+	doSubmit(mr_tasktype::REDUCE, index);
 }
 
 void Worker::doSubmit(mr_tasktype taskType, int index)
@@ -109,6 +228,9 @@ void Worker::doSubmit(mr_tasktype taskType, int index)
 
 void Worker::doWork()
 {
+	#ifdef DEBUG
+	cout << "work" << endl;
+	#endif
 	for (;;) {
 
 		//
@@ -118,7 +240,20 @@ void Worker::doWork()
 		// if mr_tasktype::REDUCE, then doReduce and doSubmit
 		// if mr_tasktype::NONE, meaning currently no work is needed, then sleep
 		//
-
+		mr_protocol::AskTaskResponse response;
+		mr_protocol::status ret = this->cl->call(mr_protocol::asktask, 1, response);
+		#ifdef DEBUG
+		cout << "response: " << response.taskType << endl; 
+		#endif
+		if(response.taskType==mr_tasktype::MAP){
+			doMap(response.index, response.filename);
+		}
+		else if(response.taskType==mr_tasktype::REDUCE){
+			doReduce(response.index);
+		}
+		else{
+			sleep(1);
+		}
 	}
 }
 
