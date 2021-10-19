@@ -125,9 +125,6 @@ Worker::Worker(const string &dst, const string &dir, MAPF mf, REDUCEF rf)
 	this->basedir = dir;
 	this->mapf = mf;
 	this->reducef = rf;
-	#ifdef DEBUG
-	cout << "basedir: " << this->basedir << endl;
-	#endif
 
 	sockaddr_in dstsock;
 	make_sockaddr(dst.c_str(), &dstsock);
@@ -146,43 +143,58 @@ void Worker::doMap(int index, const string &filename)
 {
 	// Lab2: Your code goes here.
 	#ifdef DEBUG
-	cout << "basedir: " << basedir << " , filename: " << filename << endl;
+	cout << "Map task index : " << index << endl;
 	#endif
 	string content;
 	getline(ifstream(filename), content, '\0');
 	vector<KeyVal> pairs = mapf(filename, content);
-	ofstream out0(basedir+"/mr-"+to_string(index)+"-0");
-    ofstream out1(basedir+"/mr-"+to_string(index)+"-1");
-    ofstream out2(basedir+"/mr-"+to_string(index)+"-2");
-    ofstream out3(basedir+"/mr-"+to_string(index)+"-3");
+	string buf0, buf1, buf2, buf3;
 	for(auto &pair : pairs){
 		switch(hash(pair.key)){
 			case 0:
-				out0 << pair.key << '\t' << pair.val << endl;
+				buf0 = buf0 + pair.key + '\t' + pair.val + '\n';
                 break;
             case 1:
-				out1 << pair.key << '\t' << pair.val << endl;
+				buf1 = buf1 + pair.key + '\t' + pair.val + '\n';
                 break;
             case 2:
-				out2 << pair.key << '\t' << pair.val << endl;
+				buf2 = buf2 + pair.key + '\t' + pair.val + '\n';
                 break;
             case 3:
-				out3 << pair.key << '\t' << pair.val << endl;
+				buf3 = buf3 + pair.key + '\t' + pair.val + '\n';
                 break;
             default:
                 break;
 		}
 	}
+	ofstream out0(basedir+"mr-"+to_string(index)+"-0");
+	out0 << buf0;
 	out0.close();
+
+    ofstream out1(basedir+"mr-"+to_string(index)+"-1");
+	out1 << buf1;
     out1.close();
+
+    ofstream out2(basedir+"mr-"+to_string(index)+"-2");
+	out2 << buf2;
     out2.close();
+
+    ofstream out3(basedir+"mr-"+to_string(index)+"-3");
+	out3 << buf3;
     out3.close();
+
 	doSubmit(mr_tasktype::MAP, index);
+	#ifdef DEBUG
+	cout << "Map task submitted" << endl;
+	#endif
 }
 
 void Worker::doReduce(int index)
 {
 	// Lab2: Your code goes here.
+	#ifdef DEBUG
+	cout << "reduce index : " << index << endl;
+	#endif
 	int map_index = 0;
 	map<string, uint32_t> wordCount;
 	string buf;
@@ -190,11 +202,12 @@ void Worker::doReduce(int index)
 		buf = "";
 		string key;
 		uint32_t val;
-		ifstream in(basedir+"/mr-"+to_string(map_index)+"-"+to_string(index));
+		string filename = basedir+"mr-"+to_string(map_index)+"-"+to_string(index);
+		ifstream in(filename);
 		map_index++;
 		if(in.is_open()){
 			#ifdef DEBUG
-			cout << "basedir: " << basedir << " , index: " << index << endl;
+			cout << "reduce - filename - " << filename << endl;
 			#endif
 			while(getline(in, buf)){
 				stringstream ss;
@@ -205,13 +218,16 @@ void Worker::doReduce(int index)
 			in.close();
 		}
 		else{
+			in.close();
 			break;
 		}
 	}
-	ofstream out(basedir+"/mr-out"+to_string(index));
+	string content;
 	for(auto &entry : wordCount){
-		out << entry.first << ' ' << entry.second << endl;
+		content  = content + entry.first + ' ' + to_string(entry.second) + '\n';
 	}
+	ofstream out(basedir+"/mr-out"+to_string(index));
+	out << content;
 	out.close();
 	doSubmit(mr_tasktype::REDUCE, index);
 }
@@ -220,6 +236,9 @@ void Worker::doSubmit(mr_tasktype taskType, int index)
 {
 	bool b;
 	mr_protocol::status ret = this->cl->call(mr_protocol::submittask, taskType, index, b);
+	#ifdef DEBUG
+	cout << "Do submit." << endl;
+	#endif
 	if (ret != mr_protocol::OK) {
 		fprintf(stderr, "submit task failed\n");
 		exit(-1);

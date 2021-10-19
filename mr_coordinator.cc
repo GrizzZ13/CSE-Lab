@@ -50,9 +50,6 @@ private:
 
 mr_protocol::status Coordinator::askTask(int, mr_protocol::AskTaskResponse &reply) {
 	// Lab2 : Your code goes here.
-	#ifdef DEBUG
-	cout << "got request" << endl;
-	#endif
 	reply.taskType = mr_tasktype::NONE;
 	if(!isFinishedMap()){
 		// map unfinished
@@ -69,6 +66,9 @@ mr_protocol::status Coordinator::askTask(int, mr_protocol::AskTaskResponse &repl
 		this->mtx.unlock();
 		return mr_protocol::OK;
 	}
+	#ifdef DEBUG
+	cout << "Got request. Map finished." << endl;
+	#endif
 	// map finished
 	if(!isFinishedReduce()){
 		// map finished, reduce unfinished
@@ -89,6 +89,9 @@ mr_protocol::status Coordinator::askTask(int, mr_protocol::AskTaskResponse &repl
 }
 
 mr_protocol::status Coordinator::submitTask(int taskType, int index, bool &success) {
+	#ifdef DEBUG
+	cout << "Got submit request" << endl;
+	#endif
 	// Lab2 : Your code goes here.
 	if(taskType==mr_tasktype::MAP){
 		this->mtx.lock();
