@@ -9,11 +9,17 @@ disk::disk()
 
 void disk::read_block(blockid_t id, char *buf)
 {
+  if(id<0||id>=BLOCK_NUM){
+    return;
+  }
   memcpy(buf, blocks[id], BLOCK_SIZE);
 }
 
 void disk::write_block(blockid_t id, const char *buf)
 {
+  if(id<0||id>=BLOCK_NUM){
+    return;
+  }
   memcpy(blocks[id], buf, BLOCK_SIZE);
 }
 
@@ -63,7 +69,9 @@ void block_manager::free_block(uint32_t id)
 block_manager::block_manager()
 {
   d = new disk();
-
+  for(blockid_t i = 0; i < IBLOCK(INODE_NUM, sb.nblocks); i++){
+    using_blocks[i] = 1;
+  }
   // format the disk
   sb.size = BLOCK_SIZE * BLOCK_NUM;
   sb.nblocks = BLOCK_NUM;
@@ -253,7 +261,7 @@ void inode_manager::read_file(uint32_t inum, char **buf_out, int *size)
 }
 
 /* alloc/free blocks if needed */
-void inode_manager::write_file(uint32_t inum, const char *buf, int size)
+void inode_manager::write_file(uint32_t inum, const char *buf_raw, int size)
 {
   /*
    * your code goes here.
@@ -279,6 +287,8 @@ void inode_manager::write_file(uint32_t inum, const char *buf, int size)
   {
     block_write++;
   }
+  char* buf = new char[block_write*BLOCK_SIZE];
+  memcpy(buf, buf_raw, size);
 
   // new file size smaller than the old one
   if (block_write <= block_origin)
@@ -420,6 +430,7 @@ void inode_manager::write_file(uint32_t inum, const char *buf, int size)
   inode_ptr->size = size;
   put_inode(inum, inode_ptr);
   free(inode_ptr);
+  delete [] buf;
   return;
 }
 
@@ -455,32 +466,7 @@ void inode_manager::remove_file(uint32_t inum)
   {
     return;
   }
-  // file
-  // if(inode_ptr->type==extent_protocol::T_FILE){
-  //   uint32_t block_num = inode_ptr->size/BLOCK_SIZE;
-  //   if(block_num%BLOCK_SIZE!=0){
-  //     block_num++;
-  //   }
-
-  //   if(block_num <= NDIRECT){
-  //     for(uint32_t i=0;i<block_num;++i){
-  //       bm->free_block(inode_ptr->blocks[i]);
-  //     }
-  //   }
-  //   else{
-  //     uint32_t indirect_blocks[NINDIRECT];
-  //     bm->read_block(inode_ptr->blocks[NDIRECT], (char*)indirect_blocks);
-  //     for(uint32_t i=0;i<NDIRECT;++i){
-  //       bm->free_block(inode_ptr->blocks[i]);
-  //     }
-  //     for(uint32_t i=0;i<block_num-NDIRECT;++i){
-  //       bm->free_block(indirect_blocks[i]);
-  //     }
-  //     bm->free_block(inode_ptr->blocks[NDIRECT]);
-  //   }
-  //   free_inode(inum);
-  //   free(inode_ptr);
-  // }
+  
   uint32_t block_num = inode_ptr->size / BLOCK_SIZE;
   if (block_num % BLOCK_SIZE != 0)
   {
