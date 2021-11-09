@@ -7,6 +7,7 @@
 #include <map>
 #include "extent_protocol.h"
 #include "inode_manager.h"
+#include <mutex>
 
 class extent_server {
  protected:
@@ -18,6 +19,7 @@ class extent_server {
   std::map <extent_protocol::extentid_t, extent_t> extents;
 #endif
   inode_manager *im;
+  std::mutex mtx;
 
  public:
   extent_server();

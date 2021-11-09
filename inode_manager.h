@@ -64,7 +64,7 @@ class block_manager {
 #define BBLOCK(b) ((b)/BPB + 2)
 
 #define NDIRECT 100
-#define NINDIRECT (BLOCK_SIZE / sizeof(uint))
+#define NINDIRECT (BLOCK_SIZE / sizeof(uint32_t))
 #define MAXFILE (NDIRECT + NINDIRECT)
 
 typedef struct inode {
@@ -90,6 +90,7 @@ class inode_manager {
   void write_file(uint32_t inum, const char *buf, int size);
   void remove_file(uint32_t inum);
   void getattr(uint32_t inum, extent_protocol::attr &a);
+  void set_time(uint32_t inum);
 };
 
 #endif

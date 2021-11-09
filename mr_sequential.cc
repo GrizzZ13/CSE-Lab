@@ -8,6 +8,7 @@
 #include <iostream>
 #include <vector>
 #include <algorithm>
+#include <map>
 
 using namespace std;
 
@@ -16,6 +17,16 @@ typedef struct {
     string val;
 }
 KeyVal;
+
+bool isLetter(const char &a) {
+    if(a>='a'&&a<='z'){
+        return true;
+    }
+    if(a>='A'&&a<='Z'){
+        return true;
+    }
+    return false;
+}
 
 //
 // The map function is called once for each file of input. The first
@@ -28,7 +39,37 @@ vector<KeyVal> Map(const string &filename, const string &content)
 {
     // Your code goes here
     // Hints: split contents into an array of words.
-
+    map<string, size_t> wordCount;
+    vector<KeyVal> ret;
+    size_t inputLength = content.length();
+    size_t pos = 0;
+    size_t len = 0;
+    bool word = false;
+    string key;
+    for (size_t i = 0; i < inputLength; i++){
+        if(isLetter(content[i])){
+            if(word==false){
+                word=true;
+                pos = i;
+            }
+            len++;
+        }
+        else{
+            if(len>0){
+                key = content.substr(pos, len);
+                wordCount[key]++;
+            }
+            word = false;
+            len = 0;
+        }
+    }
+    for(auto &w : wordCount){
+        KeyVal kv;
+        kv.key = w.first;
+        kv.val = to_string(w.second);
+        ret.push_back(kv);
+    }
+    return ret;
 }
 
 //
@@ -40,6 +81,13 @@ string Reduce(const string &key, const vector <string> &values)
 {
     // Your code goes here
     // Hints: return the number of occurrences of the word.
+    int count = 0;
+    uint32_t size = values.size();
+    for(int i = 0;i<size;++i){
+        int temp = std::atoi((values[i]).c_str());
+        count += temp;
+    }
+    return to_string(count);
 
 }
 
