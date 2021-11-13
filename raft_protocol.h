@@ -4,6 +4,8 @@
 #include "rpc.h"
 #include "raft_state_machine.h"
 
+#define MAX_BUF_LEN 8192
+
 enum raft_rpc_opcodes {
     op_request_vote = 0x1212,
     op_append_entries = 0x3434,
@@ -21,6 +23,18 @@ enum raft_rpc_status {
 class request_vote_args {
 public:
     // Your code here
+    int term;
+    int candidateId;
+    int lastLogIndex;
+    int lastLogTerm;
+
+    request_vote_args(){}
+    request_vote_args(int term_, int candidateId_, int lastLogIndex_, int lastLogTerm_){
+        term = term_;
+        candidateId = candidateId_;
+        lastLogIndex = lastLogIndex_;
+        lastLogTerm = lastLogTerm_;
+    }
 };
 
 marshall& operator<<(marshall &m, const request_vote_args& args);
@@ -30,6 +44,14 @@ unmarshall& operator>>(unmarshall &u, request_vote_args& args);
 class request_vote_reply {
 public:
     // Your code here
+    int term;
+    bool voteGranted;
+
+    request_vote_reply(){}
+    request_vote_reply(int term_, bool voteGranted_){
+        term = term_;
+        voteGranted = voteGranted_;
+    }
 };
 
 marshall& operator<<(marshall &m, const request_vote_reply& reply);
@@ -39,17 +61,42 @@ template<typename command>
 class log_entry {
 public:
     // Your code here
+    int term;
+    int index;
+    command cmd;
+
+    log_entry(){}
+    log_entry(int term_, int index_, const command& cmd_){
+        term = term_;
+        index = index_;
+        cmd = cmd_;
+    }
 };
 
 template<typename command>
 marshall& operator<<(marshall &m, const log_entry<command>& entry) {
     // Your code here
+    m << entry.term;
+    m << entry.index;
+    char buf[MAX_BUF_LEN];
+    int size = entry.cmd.size();
+    entry.cmd.serialize(buf, size);
+    std::string str(buf, size);
+    m << size;
+    m << str;
     return m;
 }
 
 template<typename command>
 unmarshall& operator>>(unmarshall &u, log_entry<command>& entry) {
     // Your code here
+    u >> entry.term;
+    u >> entry.index;
+    int size;
+    std::string str;
+    u >> size;
+    u >> str;
+    entry.cmd.deserialize(str.c_str(), size);
     return u;
 }
 
@@ -57,23 +104,91 @@ template<typename command>
 class append_entries_args {
 public:
     // Your code here
+    int term;
+    int leaderId;
+    int prevLogIndex;
+    int prevLogTerm;
+    int leaderCommit;
+    std::vector<log_entry<command>> log_entries;
+
+    append_entries_args(){}
+    append_entries_args(int term_, int leaderId_, int prevLogIndex_,
+                        int prevLogTerm_, int leaderCommit_){
+        term = term_;
+        leaderId = leaderId_;
+        prevLogIndex = prevLogIndex_;
+        prevLogTerm = prevLogTerm_;
+        leaderCommit = leaderCommit_;
+    }
+    append_entries_args(int term_, int leaderId_, int prevLogIndex_, 
+                        int prevLogTerm_, int leaderCommit_, 
+                        const std::vector<log_entry<command>>& log_entries_){
+        term = term_;
+        leaderId = leaderId_;
+        prevLogIndex = prevLogIndex_;
+        prevLogTerm = prevLogTerm_;
+        leaderCommit = leaderCommit_;
+        log_entries = log_entries_;
+    }
+    append_entries_args(int term_, int leaderId_, int prevLogIndex_, 
+                        int prevLogTerm_, int leaderCommit_, 
+                        const log_entry<command>& log_entry_){
+        term = term_;
+        leaderId = leaderId_;
+        prevLogIndex = prevLogIndex_;
+        prevLogTerm = prevLogTerm_;
+        leaderCommit = leaderCommit_;
+        log_entries.push_back(log_entry_);
+    }
 };
 
 template<typename command>
 marshall& operator<<(marshall &m, const append_entries_args<command>& args) {
     // Your code here
+    m << args.term;
+    m << args.leaderId;
+    m << args.prevLogIndex;
+    m << args.prevLogTerm;
+    m << args.leaderCommit;
+    int size = args.log_entries.size();
+    m << size;
+    for(int i = 0;i < size;++i){
+        m << args.log_entries[i];
+    }
     return m;
 }
 
 template<typename command>
 unmarshall& operator>>(unmarshall &u, append_entries_args<command>& args) {
     // Your code here
+    u >> args.term;
+    u >> args.leaderId;
+    u >> args.prevLogIndex;
+    u >> args.prevLogTerm;
+    u >> args.leaderCommit;
+    int size;
+    u >> size;
+    for(int i = 0;i < size;++i){
+        log_entry<command> entry;
+        u >> entry;
+        args.log_entries.push_back(entry);
+    }
     return u;
 }
 
 class append_entries_reply {
 public:
     // Your code here
+    int term;
+    bool success;
+    int match_index;
+
+    append_entries_reply(){}
+    append_entries_reply(int term_, bool success_, int match_index_){
+        term = term_;
+        success = success_;
+        match_index = match_index_;
+    }
 };
 
 marshall& operator<<(marshall &m, const append_entries_reply& reply);
