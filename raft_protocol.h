@@ -109,6 +109,7 @@ public:
     int prevLogIndex;
     int prevLogTerm;
     int leaderCommit;
+    bool commit;
     std::vector<log_entry<command>> log_entries;
 
     append_entries_args(){}
@@ -119,6 +120,7 @@ public:
         prevLogIndex = prevLogIndex_;
         prevLogTerm = prevLogTerm_;
         leaderCommit = leaderCommit_;
+        commit = false;
     }
     append_entries_args(int term_, int leaderId_, int prevLogIndex_, 
                         int prevLogTerm_, int leaderCommit_, 
@@ -129,6 +131,7 @@ public:
         prevLogTerm = prevLogTerm_;
         leaderCommit = leaderCommit_;
         log_entries = log_entries_;
+        commit = false;
     }
     append_entries_args(int term_, int leaderId_, int prevLogIndex_, 
                         int prevLogTerm_, int leaderCommit_, 
@@ -139,6 +142,7 @@ public:
         prevLogTerm = prevLogTerm_;
         leaderCommit = leaderCommit_;
         log_entries.push_back(log_entry_);
+        commit = false;
     }
 };
 
@@ -150,6 +154,7 @@ marshall& operator<<(marshall &m, const append_entries_args<command>& args) {
     m << args.prevLogIndex;
     m << args.prevLogTerm;
     m << args.leaderCommit;
+    m << args.commit;
     int size = args.log_entries.size();
     m << size;
     for(int i = 0;i < size;++i){
@@ -166,6 +171,7 @@ unmarshall& operator>>(unmarshall &u, append_entries_args<command>& args) {
     u >> args.prevLogIndex;
     u >> args.prevLogTerm;
     u >> args.leaderCommit;
+    u >> args.commit;
     int size;
     u >> size;
     for(int i = 0;i < size;++i){
@@ -182,12 +188,14 @@ public:
     int term;
     bool success;
     int match_index;
+    bool append;
 
     append_entries_reply(){}
     append_entries_reply(int term_, bool success_, int match_index_){
         term = term_;
         success = success_;
         match_index = match_index_;
+        append = false;
     }
 };
 

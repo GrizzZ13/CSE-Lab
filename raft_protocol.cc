@@ -37,6 +37,7 @@ marshall& operator<<(marshall &m, const append_entries_reply& reply) {
     m << reply.term;
     m << reply.success;
     m << reply.match_index;
+    m << reply.append;
     return m;
 }
 unmarshall& operator>>(unmarshall &u, append_entries_reply& reply) {
@@ -44,6 +45,7 @@ unmarshall& operator>>(unmarshall &u, append_entries_reply& reply) {
     u >> reply.term;
     u >> reply.success;
     u >> reply.match_index;
+    u >> reply.append;
     return u;
 }
 

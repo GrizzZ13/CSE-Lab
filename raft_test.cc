@@ -236,6 +236,8 @@ TEST_CASE(part2, rejoin, "Rejoin of partitioned leader")
     int leader1 = group->check_exact_one_leader();
 
     // leader network failure
+    std::cout << "==============================phase1==============================" << std::endl;
+    printf("disable leader 1 %d\n", leader1);
     group->disable_node(leader1);
 
     // make old leader try to agree on some entries
@@ -249,6 +251,9 @@ TEST_CASE(part2, rejoin, "Rejoin of partitioned leader")
     group->append_new_command(103, 2);
 
     // new leader network failure
+    std::cout << "==============================phase2==============================" << std::endl;
+    printf("disable leader 2 %d\n", leader2);
+    printf("enable  leader 1 %d\n", leader1);
     group->disable_node(leader2);
 
 	// old leader connected again
@@ -257,6 +262,8 @@ TEST_CASE(part2, rejoin, "Rejoin of partitioned leader")
     group->append_new_command(104, 2);
 
 	// all together now
+    std::cout << "==============================phase3==============================" << std::endl;
+    printf("enable  leader 2 %d\n", leader2);
 	group->enable_node(leader2);
 
     group->append_new_command(105, num_nodes);
@@ -272,12 +279,14 @@ TEST_CASE(part2, backup, "Leader backs up quickly over incorrect follower logs")
 
     group->append_new_command(value++, num_nodes);
 
+    std::cout << "==============================phase1==============================" << std::endl;
     // put leader and one follower in a partition
     int leader1 = group->check_exact_one_leader();
     group->disable_node((leader1 + 2) % num_nodes);
     group->disable_node((leader1 + 3) % num_nodes);
     group->disable_node((leader1 + 4) % num_nodes);
 
+    std::cout << "==============================phase2==============================" << std::endl;
 	// submit lots of commands that won't commit
     int temp_term, temp_index;
     for (int i = 0; i < 50; i++)
@@ -289,16 +298,19 @@ TEST_CASE(part2, backup, "Leader backs up quickly over incorrect follower logs")
     group->disable_node(leader1);
     group->disable_node((leader1 + 1) % num_nodes);
 
+    std::cout << "==============================phase3==============================" << std::endl;
     // allow other partition to recover
     group->enable_node((leader1 + 2) % num_nodes);
     group->enable_node((leader1 + 3) % num_nodes);
     group->enable_node((leader1 + 4) % num_nodes);
     
+    std::cout << "==============================phase4==============================" << std::endl;
 	// lots of successful commands to new group.
     for (int i = 0; i < 50; i++) 
         group->append_new_command(value++, 3);
     
 
+    std::cout << "==============================phase5==============================" << std::endl;
 	// now another partitioned leader and one follower
     int leader2 = group->check_exact_one_leader();
     int other = (leader1 + 2) % num_nodes;
@@ -306,24 +318,29 @@ TEST_CASE(part2, backup, "Leader backs up quickly over incorrect follower logs")
 
     group->disable_node(other);
 
+    std::cout << "==============================phase6==============================" << std::endl;
 	// lots more commands that won't commit
     for (int i = 0; i < 50; i++)
         group->nodes[leader2]->new_command(list_command(value++), temp_term, temp_index);
 
     mssleep(500);
 
+    std::cout << "==============================phase7==============================" << std::endl;
 	// bring original leader back to life,
     for (int i = 0; i < num_nodes; i++)
         group->disable_node(i);
     group->enable_node((leader1 + 0) % num_nodes);
     group->enable_node((leader1 + 1) % num_nodes);
     group->enable_node(other);
+    printf("enable %d %d %d \n", (leader1 + 0) % num_nodes, (leader1 + 1) % num_nodes, other);
 
+    std::cout << "==============================phase8==============================" << std::endl;
 	// lots of successful commands to new group.
     for (int i = 0; i < 50; i++) 
         group->append_new_command(value++, 3);
     
 
+    std::cout << "==============================phase9==============================" << std::endl;
 	// now everyone
     for (int i = 0; i < num_nodes; i++)
         group->enable_node(i);
