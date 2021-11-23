@@ -15,7 +15,8 @@
 #include "raft_protocol.h"
 #include "raft_state_machine.h"
 
-#define ENABLE_LOG
+// #define ENABLE_LOG
+// #define OUTPUT_RESTORE
 
 template<typename state_machine, typename command>
 class raft {
@@ -200,8 +201,10 @@ raft<state_machine, command>::raft(rpcs* server, std::vector<rpcc*> clients, int
     if(storage->restore(current_term, log_entries)){
         last_log_index = log_entries[log_entries.size()-1].index;
         last_log_term = log_entries[log_entries.size()-1].term;
-        #ifdef ENABLE_LOG
-        RAFT_LOG("restore : last log index %d last log term %d", last_log_index, last_log_term);
+        #ifdef OUTPUT_RESTORE
+        for(auto &entry : log_entries){
+            RAFT_LOG("index %d term %d value %d", entry.index, entry.term, entry.cmd.value);
+        }
         #endif
     }
     else{
@@ -353,7 +356,6 @@ void raft<state_machine, command>::handle_request_vote_reply(int target, const r
         int size = num_nodes();
         if(granted >= size/2 + 1){
             role = leader;
-            commit_index = 0;
             #ifdef ENABLE_LOG
             RAFT_LOG("leader %d", my_id);
             #endif
@@ -506,11 +508,11 @@ void raft<state_machine, command>::handle_append_entries_reply(int target, const
             std::vector<int> temp = match_index;
             std::sort (temp.begin(), temp.end());
             #ifdef ENABLE_LOG
-            std::string buf;
-            for(auto i : match_index){
-                buf += std::to_string(i) + " ";
-            }
-            RAFT_LOG("match array %s", buf.c_str());
+            // std::string buf;
+            // for(auto i : match_index){
+            //     buf += std::to_string(i) + " ";
+            // }
+            // RAFT_LOG("match array %s", buf.c_str());
             #endif
             int N = temp[(temp.size()-1)/2];
             if(N > commit_index && log_entries[N].term == current_term){
@@ -521,7 +523,9 @@ void raft<state_machine, command>::handle_append_entries_reply(int target, const
             }
         }
         else{
-            next_index[target]--;
+            if(next_index[target]>1){
+                next_index[target]--;
+            }
         }
     }
     return;
@@ -619,6 +623,7 @@ void raft<state_machine, command>::run_background_commit() {
         if (is_stopped()) return;
         // Your code here:
         {
+            std::unique_lock<std::mutex> lock(mtx);
             try_commit();
         }
         

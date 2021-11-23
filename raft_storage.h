@@ -32,45 +32,52 @@ raft_storage<command>::~raft_storage() {
 
 template<typename command>
 void raft_storage<command>::store(int current_term, std::vector<log_entry<command>>& log_entries) {
+    std::unique_lock<std::mutex> lock(mtx);
    std::ofstream ofs;
-   ofs.open(dir+"/log_file.log", std::ofstream::out);
-   std::string buf;
-   buf += std::to_string(current_term) + "\n";
-   char cbuf[8192];
-   int size;
+   ofs.open(dir+"/log_file.log", std::ios::out | std::ios::binary);
+   int entry_count = log_entries.size();
+   ofs.write((const char*)&current_term, sizeof(int));
+   ofs.write((const char*)&entry_count, sizeof(int));
+//    std::cout << "  store ";
    for(const auto& entry : log_entries){
-        char cbuf[8192];
+        char cbuf[2048];
         int size = entry.cmd.size();
         entry.cmd.serialize(cbuf, size);
-        std::string cmdstr(cbuf, size);
-        buf += std::to_string(entry.term) + " " + std::to_string(entry.index)
-                + " " + std::to_string(size) + " " + cmdstr + "\n";
+        ofs.write((const char*)&entry.index, sizeof(int));
+        ofs.write((const char*)&entry.term, sizeof(int));
+        ofs.write((const char*)&size, sizeof(int));
+        ofs.write((const char*)cbuf, size);
+        // std::cout << entry.cmd.value << "\t";
    }
-   ofs << buf;
+//    std::cout << std::endl;
    ofs.close();
 }
 
 template<typename command>
 bool raft_storage<command>::restore(int &current_term, std::vector<log_entry<command>>& log_entries) {
+    std::unique_lock<std::mutex> lock(mtx);
    std::ifstream ifs;
-   ifs.open(dir+"/log_file.log");
+   ifs.open(dir+"/log_file.log", std::ios::in | std::ios::binary);
    if(ifs.is_open()){
-       std::string buf;
-       getline(ifs, buf);
-       current_term = atoi(buf.c_str());
-       while(getline(ifs, buf)){
-           if(buf == "\n"){
-               break;
-           }
-           int term, index, size;
-           char cbuf[8192];
-           sscanf(buf.c_str(), "%d %d %d %s", &term, &index, &size, cbuf);
+       int entry_count;
+       char cbuf[2048];
+       ifs.read((char*)&current_term, sizeof(int));
+       ifs.read((char*)&entry_count, sizeof(int));
+    //    std::cout << "restore ";
+       for(int i = 0;i < entry_count;++i){
+           int size, term, index;
+           ifs.read((char*)&index, sizeof(int));
+           ifs.read((char*)&term, sizeof(int));
+           ifs.read((char*)&size, sizeof(int));
+           ifs.read((char*)cbuf, size);
            log_entry<command> entry;
            entry.term = term;
            entry.index = index;
            entry.cmd.deserialize(cbuf, size);
            log_entries.push_back(entry);
+        //    std::cout << entry.cmd.value << "\t";
        }
+    //    std::cout << std::endl;
        ifs.close();
        return true;
    }
