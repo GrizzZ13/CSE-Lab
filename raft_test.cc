@@ -318,7 +318,6 @@ TEST_CASE(part2, backup, "Leader backs up quickly over incorrect follower logs")
     group->enable_node((leader1 + 0) % num_nodes);
     group->enable_node((leader1 + 1) % num_nodes);
     group->enable_node(other);
-    printf("enable %d %d %d \n", (leader1 + 0) % num_nodes, (leader1 + 1) % num_nodes, other);
 
 	// lots of successful commands to new group.
     for (int i = 0; i < 50; i++) 

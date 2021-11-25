@@ -299,6 +299,9 @@ int raft_group<state_machine, command>::num_committed(int log_idx) {
                 // #endif
             } else {
                 has_log = false;
+                // #ifdef DEBUG
+                // std::cerr << "node index : " << i << " no log" << std::endl;
+                // #endif
             }
         }
         if (has_log) {
