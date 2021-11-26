@@ -115,6 +115,7 @@ private:
     std::vector<int> match_index;
 
     int pingcnt;
+    bool exist_new_command;
 
 
 private:
@@ -202,6 +203,7 @@ raft<state_machine, command>::raft(rpcs* server, std::vector<rpcc*> clients, int
     commit_index = 0;
     next_index = std::vector<int>(num_nodes(), 1);
     match_index = std::vector<int>(num_nodes(), 0);
+    exist_new_command = false;
     command cmd;
     log_entries.push_back(log_entry<command>(0, 0, cmd));
 
@@ -295,7 +297,7 @@ bool raft<state_machine, command>::new_command(command cmd, int &term, int &inde
     next_index[my_id] = index + 1;
     match_index[my_id] = index;
     storage->store(current_term, log_entries);
-    try_commit();
+    exist_new_command = true;
     return true;
 }
 
@@ -396,6 +398,7 @@ void raft<state_machine, command>::handle_request_vote_reply(int target, const r
                 next_index[i] = next_log_index();
                 match_index[i] = 0;
             }
+            exist_new_command = false;
         }
     }
 }
@@ -508,11 +511,8 @@ int raft<state_machine, command>::append_entries(append_entries_args<command> ar
                         ++itr_1;
                         ++itr_3;
                     }
-                    if(itr_1!=itr_2){
-                        log_entries.erase(itr_1, itr_2);
-                        modified = true;
-                    }
                     if(itr_3!=itr_4){
+                        log_entries.erase(itr_1, itr_2);
                         log_entries.insert(log_entries.end(), itr_3, itr_4);
                         modified = true;
                     }
@@ -830,7 +830,7 @@ void raft<state_machine, command>::ping() {
 
 template<typename state_machine, typename command>
 void raft<state_machine, command>::try_commit() {
-    if(is_leader(current_term)){
+    if(is_leader(current_term) && exist_new_command == true){
         int size = num_nodes();
         for(int i = 0;i < size;++i){
             if(i!=my_id){
