@@ -12,6 +12,7 @@
 #include "rpc.h"
 #include "raft.h"
 
+#define DEBUG
 
 /******************************************************************
 
@@ -293,8 +294,14 @@ int raft_group<state_machine, command>::num_committed(int log_idx) {
             if ((int)state->store.size() > log_idx) {
                 log_value = state->store[log_idx];
                 has_log = true;
+                // #ifdef DEBUG
+                // std::cerr << "node index : " << i << " log index : " << log_idx << " log value : " << state->store[log_idx] << " log size : " << (int)state->store.size() << std::endl;
+                // #endif
             } else {
                 has_log = false;
+                // #ifdef DEBUG
+                // std::cerr << "node index : " << i << " no log" << std::endl;
+                // #endif
             }
         }
         if (has_log) {
@@ -306,6 +313,9 @@ int raft_group<state_machine, command>::num_committed(int log_idx) {
             }
         }
     }
+    // #ifdef DEBUG
+    // std::cerr << "log index : " << log_idx << " cnt : " << cnt << std::endl;
+    // #endif
     return cnt;
 }
 
