@@ -89,5 +89,18 @@ public:
     int replica_num = 5;
     std::vector<chdb_log> logs;
     int magic_number = 0x7fffffff;
+    
+    #if PART_3
+    struct my_lock{
+        std::shared_ptr<std::mutex> mtx;
+        int tx_id;
+
+        my_lock():mtx(std::make_shared<std::mutex>()), tx_id(-1) {}
+    };
+    std::mutex mtx_map_lock;
+    std::map<int, my_lock> mtx_map;
+    bool redo(std::vector<chdb_log> &redo_logs);
+    
+    #endif
 
 };
