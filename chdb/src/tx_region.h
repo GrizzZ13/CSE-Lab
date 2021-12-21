@@ -9,6 +9,7 @@ public:
     tx_region(chdb *db) : db(db),
                           tx_id(db->next_tx_id()) {
         this->tx_begin();
+        prepare = 1;
     }
 
     ~tx_region() {
@@ -68,4 +69,9 @@ private:
 
     chdb *db;
     const int tx_id;
+    int prepare;
+    std::map<int, int> targets;
+    #if RAFT_GROUP
+    std::mutex mtx;
+    #endif
 };

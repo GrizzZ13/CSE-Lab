@@ -87,5 +87,7 @@ public:
     std::vector<std::map<int, value_entry>> store;
     int primary_replica = 0;
     int replica_num = 5;
+    std::vector<chdb_log> logs;
+    int magic_number = 0x7fffffff;
 
 };

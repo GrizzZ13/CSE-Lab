@@ -61,7 +61,24 @@ public:
             unsigned int proc,
             const chdb_protocol::operation_var &var,
             int &r);
+    
+    int
+    execute(unsigned int query_key,
+            unsigned int proc,
+            const chdb_protocol::rollback_var &var,
+            int &r);
+    
+    int
+    execute(unsigned int query_key,
+            unsigned int proc,
+            const chdb_protocol::commit_var &var,
+            int &r);
 
+    int
+    execute(unsigned int query_key,
+            unsigned int proc,
+            const chdb_protocol::prepare_var &var,
+            int &r);
 
     ~view_server();
 
@@ -130,6 +147,9 @@ public:
     std::vector<shard_client *> shards;
     int max_tx_id;
     std::mutex tx_id_mtx;
+    #if BIG_LOCK
+    std::mutex big_lock;
+    #endif
 
 private:
     static int default_dispatch(const int key, int shard_num) {
