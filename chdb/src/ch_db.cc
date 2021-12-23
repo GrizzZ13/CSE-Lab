@@ -20,14 +20,8 @@ int view_server::execute(unsigned int query_key, unsigned int proc, const chdb_p
         assert(0);
     }
     int leader = raft_group->check_exact_one_leader();
-    {
-        std::unique_lock<std::mutex> lock(cmd.res->mtx);
-        raft_group->nodes[leader]->new_command(cmd, term, index);
-        while(!cmd.res->done){
-            cmd.res->cv.wait_until(lock, std::chrono::system_clock::now() + std::chrono::milliseconds(1000));
-        }
-    }
-
+    raft_group->nodes[leader]->new_command(cmd, term, index);
+    
     #endif
 
     int base_port = this->node->port();

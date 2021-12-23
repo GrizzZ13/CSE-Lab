@@ -71,7 +71,31 @@ private:
     const int tx_id;
     int prepare;
     std::map<int, int> targets;
+
     #if RAFT_GROUP
     std::mutex mtx;
+    #endif
+    
+    #if PART_3
+
+    struct history {
+        int op;
+        int key;
+        int val;
+
+        history(int op, int key, int val):
+            op(op), key(key), val(val) {}
+        history(int op, int key):
+            op(op), key(key), val(0) {}
+        history():
+            op(0), key(0), val(0) {}
+    };
+    
+    std::vector<history> histories;
+
+    void replay();
+    bool inner_put(const int key, const int val);
+    bool inner_get(const int key, int &r);
+
     #endif
 };

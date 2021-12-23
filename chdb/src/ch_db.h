@@ -151,6 +151,32 @@ public:
     std::mutex big_lock;
     #endif
 
+    #if PART_3
+    struct key_lock{
+        std::shared_ptr<std::mutex> mtx;
+        int tx_id;
+
+        key_lock(int i):mtx(std::make_shared<std::mutex>()), tx_id(i) {}
+        key_lock():mtx(std::make_shared<std::mutex>()), tx_id(-1) {}
+
+        bool try_lock(){
+            return mtx->try_lock();
+        }
+        void lock() {
+            mtx->lock();
+        }
+        void unlock() {
+            mtx->unlock();
+        }
+
+    };
+
+    std::mutex latch;
+    std::condition_variable cv;
+    std::map<int, key_lock> key_locks;
+
+    #endif
+
 private:
     static int default_dispatch(const int key, int shard_num) {
         int shard_offset = key % shard_num;
